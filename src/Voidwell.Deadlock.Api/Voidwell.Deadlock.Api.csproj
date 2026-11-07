@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <AssemblyName>Voidwell.Deadlock.Api</AssemblyName>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Voidwell.Deadlock.CollectionStore\Voidwell.Deadlock.CollectionStore.csproj" />
+    <ProjectReference Include="..\Voidwell.Deadlock.Data\Voidwell.Deadlock.Data.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="appsettings.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Update="appsettings.*.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Voidwell.Common.Authentication" />
+    <PackageReference Include="Voidwell.Common.Cache" />
+    <PackageReference Include="Voidwell.Common.Logging" />
+    <PackageReference Include="Voidwell.Common.Swagger" />
+  </ItemGroup>
+
+</Project>

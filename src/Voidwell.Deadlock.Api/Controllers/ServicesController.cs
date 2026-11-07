@@ -1,0 +1,68 @@
+using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
+using Voidwell.Deadlock.Api.Authentication;
+using Voidwell.Deadlock.Utils.HostedService;
+
+namespace Voidwell.Deadlock.Api.Controllers;
+
+[Route("deadlock/services")]
+[Authorize(Roles = AuthConstants.Roles.Administrator)]
+public class ServicesController : Controller
+{
+    private readonly IStatefulHostedServiceManager _serviceManager;
+
+    public ServicesController(IStatefulHostedServiceManager serviceManager)
+    {
+        _serviceManager = serviceManager;
+    }
+
+    [HttpGet("status")]
+    public async Task<ActionResult> GetAllServiceStatusAsync()
+    {
+        var states = await _serviceManager.GetServiceStatusAsync(CancellationToken.None);
+
+        return Ok(states);
+    }
+
+    [HttpGet("{serviceName}/status")]
+    public async Task<ActionResult> GetServiceStatusAsync(string serviceName)
+    {
+        var state = await _serviceManager.GetServiceStatusAsync(serviceName, CancellationToken.None);
+        if (state == null)
+        {
+            return NotFound();
+        }
+
+        return Ok(state);
+    }
+
+    [HttpPost("{serviceName}/enable")]
+    public async Task<ActionResult> PostEnableServiceAsync(string serviceName)
+    {
+        if (!_serviceManager.VerifyServiceExists(serviceName))
+        {
+            return NotFound();
+        }
+
+        await _serviceManager.StartServiceAsync(serviceName, CancellationToken.None);
+
+        var status = await _serviceManager.GetServiceStatusAsync(serviceName, CancellationToken.None);
+
+        return Ok(status);
+    }
+
+    [HttpPost("{serviceName}/disable")]
+    public async Task<ActionResult> PostDisableServiceAsync(string serviceName)
+    {
+        if (!_serviceManager.VerifyServiceExists(serviceName))
+        {
+            return NotFound();
+        }
+
+        await _serviceManager.StopServiceAsync(serviceName, CancellationToken.None);
+
+        var status = await _serviceManager.GetServiceStatusAsync(serviceName, CancellationToken.None);
+
+        return Ok(status);
+    }
+}

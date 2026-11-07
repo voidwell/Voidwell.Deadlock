@@ -1,0 +1,7 @@
+namespace Voidwell.Deadlock.CollectionStore.StoreUpdater;
+
+public interface IStoreUpdaterService
+{
+    public IEnumerable<LastStoreUpdate> GetStoreUpdateLog();
+    public Task<LastStoreUpdate?> UpdateStoreAsync(string storeName);
+}
