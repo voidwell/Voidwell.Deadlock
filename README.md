@@ -1,5 +1,9 @@
 # Voidwell.Deadlock
 
+[![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/voidwell/voidwell.deadlock/build-test.yml?branch=main&style=for-the-badge)](https://github.com/voidwell/voidwell.deadlock/actions/workflows/build-test.yml)
+[![Latest Release](https://img.shields.io/github/v/release/voidwell/voidwell.deadlock?style=for-the-badge)](https://github.com/voidwell/voidwell.deadlock/releases/latest)
+[![MIT License](https://img.shields.io/badge/License-MIT-green?style=for-the-badge)](LICENSE)
+
 Backend API for Voidwell's Deadlock analytics. Match data lives in PostgreSQL with the TimescaleDB extension. History is bulk-loaded from the [Deadlock API data dump](https://deadlock-api.com/data-dumps) by a script, and the app keeps it current by polling the [Deadlock API](https://api.deadlock-api.com). Heroes, items and ranks are synced from the API's assets endpoints.
 
 ## Layout
