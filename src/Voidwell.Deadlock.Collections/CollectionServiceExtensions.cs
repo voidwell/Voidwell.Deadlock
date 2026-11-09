@@ -22,6 +22,8 @@ public static class CollectionServiceExtensions
         services.TryAddTransient<HeroCollection>();
         services.TryAddTransient<ItemCollection>();
         services.TryAddTransient<RankCollection>();
+        services.TryAddTransient<PatchCollection>();
+        services.TryAddTransient<IMatchCollection, MatchCollection>();
 
         return services;
     }

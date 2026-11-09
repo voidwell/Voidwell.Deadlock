@@ -46,13 +46,15 @@ public class StoreUpdaterScheduler : IStoreUpdaterService, IStatefulHostedServic
 
             UpdateServiceLog(updateConfig, updaterHistory?.LastUpdateDate);
         }
+
+        // Start with the application unless DisableUpdater is set. Without this the timers would only run after someone
+        // enabled the service through the API, and that setting is lost on restart when there is no shared cache.
+        await StartAsync(cancellationToken);
     }
 
     public Task OnApplicationShutdown(CancellationToken cancellationToken)
     {
-        _updaterTimers.Clear();
-
-        return Task.CompletedTask;
+        return StopAsync(cancellationToken);
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -190,7 +192,11 @@ public class StoreUpdaterScheduler : IStoreUpdaterService, IStatefulHostedServic
 
     private object MapEntityValues(Type entityType, object values)
     {
-        var valueType = values.GetType().BaseType!.GetGenericArguments()[0];
+        // The collection returns an IEnumerable<TModel>, whatever concrete list type that is.
+        var valueType = values.GetType().GetInterfaces()
+            .First(a => a.IsGenericType && a.GetGenericTypeDefinition() == typeof(IEnumerable<>))
+            .GetGenericArguments()[0];
+
         return _mapper.Map((System.Collections.IEnumerable)values, valueType, entityType);
     }
 

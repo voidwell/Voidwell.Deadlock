@@ -19,19 +19,26 @@ public static class CollectionStoreExtensions
 
         services.AddDeadlockCollections();
 
+        services.Configure<MatchUpdaterOptions>(configuration);
+
         services.AddSingleton<ICollectionToEntityMapper, CollectionToEntityMapper>();
 
         services.AddSingleton<IHeroStore, HeroStore>();
         services.AddSingleton<IItemStore, ItemStore>();
         services.AddSingleton<IRankStore, RankStore>();
+        services.AddSingleton<IPatchStore, PatchStore>();
 
         services.AddStatefulHostedService<IStoreUpdaterService, StoreUpdaterScheduler>();
+        services.AddStatefulHostedService<MatchUpdater>();
 
         services.Configure<StaticStoreUpdaterConfiguration>(o => o.Enabled = !configuration.GetValue<bool>("DisableUpdater"));
 
         services.AddUpdaterStaticStore<HeroCollection, Hero>();
         services.AddUpdaterStaticStore<ItemCollection, Item>();
         services.AddUpdaterStaticStore<RankCollection, Rank>();
+
+        // The patch feed only lists the latest entries, so it is collected daily to build up the history.
+        services.AddUpdaterStaticStore<PatchCollection, Patch>(periodDays: 1);
 
         return services;
     }

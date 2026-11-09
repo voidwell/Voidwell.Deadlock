@@ -5,6 +5,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\Voidwell.Deadlock.Analytics\Voidwell.Deadlock.Analytics.csproj" />
     <ProjectReference Include="..\Voidwell.Deadlock.CollectionStore\Voidwell.Deadlock.CollectionStore.csproj" />
     <ProjectReference Include="..\Voidwell.Deadlock.Data\Voidwell.Deadlock.Data.csproj" />
   </ItemGroup>
