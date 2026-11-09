@@ -19,6 +19,33 @@ public class DeadlockDbContext : DbContext
     public DbSet<Hero> Heroes => Set<Hero>();
     public DbSet<Item> Items => Set<Item>();
     public DbSet<Rank> Ranks => Set<Rank>();
+    public DbSet<Patch> Patches => Set<Patch>();
+
+    public DbSet<Match> Matches => Set<Match>();
+    public DbSet<MatchPlayer> MatchPlayers => Set<MatchPlayer>();
+    public DbSet<MatchPlayerItem> MatchPlayerItems => Set<MatchPlayerItem>();
+    public DbSet<MatchPlayerStat> MatchPlayerStats => Set<MatchPlayerStat>();
+    public DbSet<IngestFile> IngestFiles => Set<IngestFile>();
+
+    public DbSet<MatchDay> MatchDays => Set<MatchDay>();
+    public DbSet<HeroDay> HeroDays => Set<HeroDay>();
+    public DbSet<HeroBanDay> HeroBanDays => Set<HeroBanDay>();
+    public DbSet<HeroItemDay> HeroItemDays => Set<HeroItemDay>();
+    public DbSet<ItemDay> ItemDays => Set<ItemDay>();
+    public DbSet<HeroBuildShapeDay> HeroBuildShapeDays => Set<HeroBuildShapeDay>();
+    public DbSet<HeroBuildDay> HeroBuildDays => Set<HeroBuildDay>();
+    public DbSet<HeroAbilityDay> HeroAbilityDays => Set<HeroAbilityDay>();
+    public DbSet<HeroAbilityPickDay> HeroAbilityPickDays => Set<HeroAbilityPickDay>();
+    public DbSet<HeroMatchupDay> HeroMatchupDays => Set<HeroMatchupDay>();
+    public DbSet<HeroSynergyDay> HeroSynergyDays => Set<HeroSynergyDay>();
+    public DbSet<HeroLaneDay> HeroLaneDays => Set<HeroLaneDay>();
+    public DbSet<TeamCompositionDay> TeamCompositionDays => Set<TeamCompositionDay>();
+    public DbSet<HeroCurveDay> HeroCurveDays => Set<HeroCurveDay>();
+    public DbSet<TeamLeadDay> TeamLeadDays => Set<TeamLeadDay>();
+    public DbSet<MatchHourDay> MatchHourDays => Set<MatchHourDay>();
+    public DbSet<MatchDurationDay> MatchDurationDays => Set<MatchDurationDay>();
+    public DbSet<MatchObjectiveDay> MatchObjectiveDays => Set<MatchObjectiveDay>();
+    public DbSet<MatchLeaverDay> MatchLeaverDays => Set<MatchLeaverDay>();
 
     public DbSet<UpdaterScheduler> UpdaterScheduler => Set<UpdaterScheduler>();
 

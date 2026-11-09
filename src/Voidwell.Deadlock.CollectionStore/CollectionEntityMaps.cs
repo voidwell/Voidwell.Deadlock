@@ -53,6 +53,22 @@ public static partial class CollectionEntityMaps
         };
     }
 
+    public static Patch Map(AssetPatchModel source)
+    {
+        var published = DateTime.SpecifyKind(source.PubDate, DateTimeKind.Utc);
+
+        return new Patch
+        {
+            // The permanent link identifies an entry across collections; the rest are fallbacks for entries without one.
+            Id = source.Guid?.Text ?? source.Link ?? $"{source.Source}:{published:O}",
+            Source = source.Source ?? string.Empty,
+            Title = source.Title?.Trim(),
+            Link = source.Link,
+            PublishedAt = published,
+            IsBigDay = source.IsBigDay
+        };
+    }
+
     private static string? GetImage(AssetHeroModel source, string key)
     {
         return source.Images != null && source.Images.TryGetValue(key, out var url) ? url : null;

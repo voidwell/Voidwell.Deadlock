@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Voidwell.Deadlock.CollectionStore\Voidwell.Deadlock.CollectionStore.csproj" />
+  </ItemGroup>
+
+</Project>

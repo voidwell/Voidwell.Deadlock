@@ -1,0 +1,7 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Voidwell.Deadlock.Analytics\Voidwell.Deadlock.Analytics.csproj" />
+  </ItemGroup>
+
+</Project>

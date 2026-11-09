@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting.Abstractions" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Voidwell.Deadlock.CollectionStore\Voidwell.Deadlock.CollectionStore.csproj" />
+    <ProjectReference Include="..\Voidwell.Deadlock.Data\Voidwell.Deadlock.Data.csproj" />
+    <ProjectReference Include="..\Voidwell.Deadlock.Utils\Voidwell.Deadlock.Utils.csproj" />
+  </ItemGroup>
+
+</Project>

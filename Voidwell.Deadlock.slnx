@@ -6,14 +6,20 @@
     <File Path=".gitignore" />
     <File Path="Directory.Build.props" />
     <File Path="Directory.Packages.props" />
+    <File Path="test/Directory.Build.props" />
     <File Path="Dockerfile" />
     <File Path="global.json" />
   </Folder>
   <Folder Name="/src/">
+    <Project Path="src/Voidwell.Deadlock.Analytics/Voidwell.Deadlock.Analytics.csproj" />
     <Project Path="src/Voidwell.Deadlock.Api/Voidwell.Deadlock.Api.csproj" />
     <Project Path="src/Voidwell.Deadlock.CollectionStore/Voidwell.Deadlock.CollectionStore.csproj" />
     <Project Path="src/Voidwell.Deadlock.Collections/Voidwell.Deadlock.Collections.csproj" />
     <Project Path="src/Voidwell.Deadlock.Data/Voidwell.Deadlock.Data.csproj" />
     <Project Path="src/Voidwell.Deadlock.Utils/Voidwell.Deadlock.Utils.csproj" />
+  </Folder>
+  <Folder Name="/test/">
+    <Project Path="test/Voidwell.Deadlock.Analytics.Test/Voidwell.Deadlock.Analytics.Test.csproj" />
+    <Project Path="test/Voidwell.Deadlock.CollectionStore.Test/Voidwell.Deadlock.CollectionStore.Test.csproj" />
   </Folder>
 </Solution>

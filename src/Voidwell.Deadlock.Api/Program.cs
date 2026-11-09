@@ -5,6 +5,7 @@ using Voidwell.Common.Cache;
 using Voidwell.Common.Configuration;
 using Voidwell.Common.Logging;
 using Voidwell.Common.Swagger;
+using Voidwell.Deadlock.Analytics;
 using Voidwell.Deadlock.Api;
 using Voidwell.Deadlock.Api.Extensions;
 using Voidwell.Deadlock.Api.Filters;
@@ -20,8 +21,11 @@ builder.AddApplicationLogging();
 var configuration = builder.Configuration;
 var services = builder.Services;
 
-services.AddControllers(options => options.Filters.Add<ClientAbortExceptionFilter>())
-    .AddApiJsonOptions();
+services.AddControllers(options =>
+{
+    options.Filters.Add<ClientAbortExceptionFilter>();
+    options.Filters.Add<AnalyticsRequestExceptionFilter>();
+}).AddApiJsonOptions();
 
 services.AddApiSwagger(configuration);
 
@@ -29,6 +33,12 @@ services.AddOutputCache(options =>
 {
     options.AddPolicy(CachePolicies.ReferenceData, policy => policy
         .Expire(TimeSpan.FromMinutes(10))
+        .SetVaryByHeader("Origin"));
+
+    // Analytics responses depend on the query string, so each distinct query is cached on its own.
+    options.AddPolicy(CachePolicies.Analytics, policy => policy
+        .Expire(TimeSpan.FromMinutes(10))
+        .SetVaryByQuery("*")
         .SetVaryByHeader("Origin"));
 });
 
@@ -70,6 +80,7 @@ services.AddCors(options =>
 
 services.AddStatefulServiceDependencies();
 services.AddCollectionStores(configuration);
+services.AddAnalytics(configuration);
 
 var app = builder.Build();
 

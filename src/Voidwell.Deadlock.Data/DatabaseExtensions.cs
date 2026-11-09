@@ -21,6 +21,14 @@ public static class DatabaseExtensions
         services.AddSingleton<IHeroRepository, HeroRepository>();
         services.AddSingleton<IItemRepository, ItemRepository>();
         services.AddSingleton<IRankRepository, RankRepository>();
+        services.AddSingleton<IMatchRepository, MatchRepository>();
+        services.AddSingleton<IPatchRepository, PatchRepository>();
+        services.AddSingleton<IRollupRepository, RollupRepository>();
+        services.AddSingleton<IHeroAnalyticsRepository, HeroAnalyticsRepository>();
+        services.AddSingleton<IItemAnalyticsRepository, ItemAnalyticsRepository>();
+        services.AddSingleton<IMatchupAnalyticsRepository, MatchupAnalyticsRepository>();
+        services.AddSingleton<ICurveAnalyticsRepository, CurveAnalyticsRepository>();
+        services.AddSingleton<IMatchAnalyticsRepository, MatchAnalyticsRepository>();
 
         return services;
     }
