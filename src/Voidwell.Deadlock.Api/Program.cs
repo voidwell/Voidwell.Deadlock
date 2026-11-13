@@ -4,6 +4,7 @@ using Voidwell.Common.Authentication;
 using Voidwell.Common.Cache;
 using Voidwell.Common.Configuration;
 using Voidwell.Common.Logging;
+using Voidwell.Common.State;
 using Voidwell.Common.Swagger;
 using Voidwell.Deadlock.Analytics;
 using Voidwell.Deadlock.Api;
@@ -12,7 +13,6 @@ using Voidwell.Deadlock.Api.Filters;
 using Voidwell.Deadlock.Api.Options;
 using Voidwell.Deadlock.CollectionStore;
 using Voidwell.Deadlock.Data;
-using Voidwell.Deadlock.Utils.HostedService;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,6 +43,7 @@ services.AddOutputCache(options =>
 });
 
 services.AddEntityFrameworkContext(configuration);
+builder.AddApplicationConfigurationStore();
 
 services.AddCache(options =>
 {

@@ -1,6 +1,6 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Voidwell.Deadlock.Utils.HostedService;
+using Voidwell.Common.State;
 
 namespace Voidwell.Deadlock.Analytics;
 

@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Voidwell.Common.State;
 using Voidwell.Deadlock.Collections.Collection;
 using Voidwell.Deadlock.Data.Models;
 using Voidwell.Deadlock.Data.Repositories.Abstractions;
 using Voidwell.Deadlock.Data.Repositories.Models;
-using Voidwell.Deadlock.Utils.HostedService;
 
 namespace Voidwell.Deadlock.CollectionStore.StoreUpdater;
 
@@ -12,7 +12,7 @@ namespace Voidwell.Deadlock.CollectionStore.StoreUpdater;
 /// Keeps the match tables current. Each run lists the matches that started in a trailing window, works out which are
 /// not stored yet, and fetches and writes those.
 /// </summary>
-public class MatchUpdater : IStatefulHostedService
+public class MatchUpdater : StatefulHostedService
 {
     public const string SchedulerId = "MatchUpdater";
 
@@ -41,38 +41,27 @@ public class MatchUpdater : IStatefulHostedService
         _logger = logger;
     }
 
-    public async Task OnApplicationStartup(CancellationToken cancellationToken)
+    public override async Task OnApplicationStartup(CancellationToken cancellationToken)
     {
         var history = await _updaterSchedulerRepository.GetUpdaterHistoryByServiceNameAsync(SchedulerId);
         _lastRunUtc = history?.LastUpdateDate;
-
-        if (!_options.DisableMatchUpdater)
-        {
-            StartTimer();
-        }
     }
 
-    public Task OnApplicationShutdown(CancellationToken cancellationToken)
-    {
-        StopTimer();
-        return Task.CompletedTask;
-    }
-
-    public Task StartAsync(CancellationToken cancellationToken)
+    public override Task StartAsync(CancellationToken cancellationToken)
     {
         StartTimer();
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    public override Task StopAsync(CancellationToken cancellationToken)
     {
         StopTimer();
         return Task.CompletedTask;
     }
 
-    public Task<object> GetStatusAsync(CancellationToken cancellationToken)
+    public override Task<object?> GetStatusAsync(CancellationToken cancellationToken)
     {
-        return Task.FromResult<object>(new
+        return Task.FromResult<object?>(new
         {
             LastSuccessfulRunUtc = _lastRunUtc,
             LastMatchesAdded = _lastMatchesAdded,

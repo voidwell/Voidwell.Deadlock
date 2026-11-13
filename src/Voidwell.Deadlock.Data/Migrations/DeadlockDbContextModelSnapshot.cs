@@ -22,6 +22,30 @@ namespace Voidwell.Deadlock.Data.Migrations
 
             NpgsqlModelBuilderExtensions.UseIdentityByDefaultColumns(modelBuilder);
 
+            modelBuilder.Entity("Voidwell.Common.Configuration.EntityFramework.ApplicationConfigurationEntity", b =>
+                {
+                    b.Property<string>("Key")
+                        .HasColumnType("text")
+                        .HasColumnName("key");
+
+                    b.Property<DateTime>("LastModifiedDate")
+                        .HasColumnType("timestamp without time zone")
+                        .HasColumnName("last_modified_date");
+
+                    b.Property<string>("LastModifiedUser")
+                        .HasColumnType("text")
+                        .HasColumnName("last_modified_user");
+
+                    b.Property<string>("Value")
+                        .HasColumnType("jsonb")
+                        .HasColumnName("value");
+
+                    b.HasKey("Key")
+                        .HasName("pk_application_configuration");
+
+                    b.ToTable("application_configuration", (string)null);
+                });
+
             modelBuilder.Entity("Voidwell.Deadlock.Data.Models.Hero", b =>
                 {
                     b.Property<int>("Id")
