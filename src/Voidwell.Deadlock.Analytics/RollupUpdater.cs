@@ -1,13 +1,14 @@
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
-using Voidwell.Deadlock.Utils.HostedService;
+using Voidwell.Common.State;
 
 namespace Voidwell.Deadlock.Analytics;
 
 /// <summary>
-/// Keeps the rollup tables current on a timer, and runs full rebuilds on request.
+/// Keeps the rollup tables current on a timer, and runs full rebuilds on request. Rebuilds can run while the timer is
+/// disabled.
 /// </summary>
-public class RollupUpdater : IStatefulHostedService
+public class RollupUpdater : StatefulHostedService
 {
     private readonly IRollupService _rollupService;
     private readonly RollupOptions _options;
@@ -31,37 +32,21 @@ public class RollupUpdater : IStatefulHostedService
         _logger = logger;
     }
 
-    public Task OnApplicationStartup(CancellationToken cancellationToken)
-    {
-        if (!_options.DisableRollupUpdater)
-        {
-            StartTimer();
-        }
-
-        return Task.CompletedTask;
-    }
-
-    public Task OnApplicationShutdown(CancellationToken cancellationToken)
-    {
-        StopTimer();
-        return Task.CompletedTask;
-    }
-
-    public Task StartAsync(CancellationToken cancellationToken)
+    public override Task StartAsync(CancellationToken cancellationToken)
     {
         StartTimer();
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    public override Task StopAsync(CancellationToken cancellationToken)
     {
         StopTimer();
         return Task.CompletedTask;
     }
 
-    public Task<object> GetStatusAsync(CancellationToken cancellationToken)
+    public override Task<object?> GetStatusAsync(CancellationToken cancellationToken)
     {
-        return Task.FromResult<object>(new
+        return Task.FromResult<object?>(new
         {
             LastSuccessfulRunUtc = _lastRunUtc,
             LastDaysRebuilt = _lastDaysRebuilt,

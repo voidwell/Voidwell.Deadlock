@@ -3,16 +3,16 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
+using Voidwell.Common.State;
 using Voidwell.Deadlock.Collections.Collection.Abstract;
 using Voidwell.Deadlock.Data;
 using Voidwell.Deadlock.Data.Extensions;
 using Voidwell.Deadlock.Data.Models;
 using Voidwell.Deadlock.Data.Repositories.Abstractions;
-using Voidwell.Deadlock.Utils.HostedService;
 
 namespace Voidwell.Deadlock.CollectionStore.StoreUpdater;
 
-public class StoreUpdaterScheduler : IStoreUpdaterService, IStatefulHostedService
+public class StoreUpdaterScheduler : StatefulHostedService, IStoreUpdaterService
 {
     private readonly IUpdaterSchedulerRepository _updaterSchedulerRepository;
     private readonly IDbContextFactory<DeadlockDbContext> _dbContextFactory;
@@ -38,7 +38,7 @@ public class StoreUpdaterScheduler : IStoreUpdaterService, IStatefulHostedServic
         _mapper = mapper;
     }
 
-    public async Task OnApplicationStartup(CancellationToken cancellationToken)
+    public override async Task OnApplicationStartup(CancellationToken cancellationToken)
     {
         foreach (var updateConfig in _options.Collections)
         {
@@ -46,24 +46,10 @@ public class StoreUpdaterScheduler : IStoreUpdaterService, IStatefulHostedServic
 
             UpdateServiceLog(updateConfig, updaterHistory?.LastUpdateDate);
         }
-
-        // Start with the application unless DisableUpdater is set. Without this the timers would only run after someone
-        // enabled the service through the API, and that setting is lost on restart when there is no shared cache.
-        await StartAsync(cancellationToken);
     }
 
-    public Task OnApplicationShutdown(CancellationToken cancellationToken)
+    public override Task StartAsync(CancellationToken cancellationToken)
     {
-        return StopAsync(cancellationToken);
-    }
-
-    public Task StartAsync(CancellationToken cancellationToken)
-    {
-        if (!_options.Enabled)
-        {
-            return Task.CompletedTask;
-        }
-
         foreach (var collectionType in _collectionLog.Keys)
         {
             RegisterUpdaterTimer(collectionType);
@@ -72,7 +58,7 @@ public class StoreUpdaterScheduler : IStoreUpdaterService, IStatefulHostedServic
         return Task.CompletedTask;
     }
 
-    public Task StopAsync(CancellationToken cancellationToken)
+    public override Task StopAsync(CancellationToken cancellationToken)
     {
         _updaterTimers.ToList().ForEach(a => a.Value?.Dispose());
         _updaterTimers.Clear();
@@ -85,9 +71,9 @@ public class StoreUpdaterScheduler : IStoreUpdaterService, IStatefulHostedServic
         return _collectionLog.Values.OrderBy(a => a.StoreName).ToList();
     }
 
-    public Task<object> GetStatusAsync(CancellationToken cancellationToken)
+    public override Task<object?> GetStatusAsync(CancellationToken cancellationToken)
     {
-        return Task.FromResult<object>($"Tracking {_collectionLog.Count} updatable collections");
+        return Task.FromResult<object?>($"Tracking {_collectionLog.Count} updatable collections");
     }
 
     public async Task<LastStoreUpdate?> UpdateStoreAsync(string storeName)

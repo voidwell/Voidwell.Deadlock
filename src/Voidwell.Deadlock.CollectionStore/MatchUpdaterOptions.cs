@@ -3,11 +3,6 @@ namespace Voidwell.Deadlock.CollectionStore;
 public class MatchUpdaterOptions
 {
     /// <summary>
-    /// When true the updater does not start with the application. It can still be started through the services API.
-    /// </summary>
-    public bool DisableMatchUpdater { get; set; }
-
-    /// <summary>
     /// Minutes between update runs.
     /// </summary>
     public int MatchUpdateIntervalMinutes { get; set; } = 5;

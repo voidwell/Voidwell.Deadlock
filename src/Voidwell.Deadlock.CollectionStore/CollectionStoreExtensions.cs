@@ -1,12 +1,12 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Voidwell.Common.State;
 using Voidwell.Deadlock.Collections;
 using Voidwell.Deadlock.Collections.Collection;
 using Voidwell.Deadlock.CollectionStore.Services;
 using Voidwell.Deadlock.CollectionStore.Services.Abstractions;
 using Voidwell.Deadlock.CollectionStore.StoreUpdater;
 using Voidwell.Deadlock.Data.Models;
-using Voidwell.Deadlock.Utils.HostedService;
 
 namespace Voidwell.Deadlock.CollectionStore;
 
@@ -15,7 +15,6 @@ public static class CollectionStoreExtensions
     public static IServiceCollection AddCollectionStores(this IServiceCollection services, IConfiguration configuration)
     {
         services.AddOptions();
-        services.Configure<StoreOptions>(configuration);
 
         services.AddDeadlockCollections();
 
@@ -30,8 +29,6 @@ public static class CollectionStoreExtensions
 
         services.AddStatefulHostedService<IStoreUpdaterService, StoreUpdaterScheduler>();
         services.AddStatefulHostedService<MatchUpdater>();
-
-        services.Configure<StaticStoreUpdaterConfiguration>(o => o.Enabled = !configuration.GetValue<bool>("DisableUpdater"));
 
         services.AddUpdaterStaticStore<HeroCollection, Hero>();
         services.AddUpdaterStaticStore<ItemCollection, Item>();

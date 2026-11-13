@@ -2,6 +2,8 @@ using Microsoft.AspNetCore.Builder;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
+using Voidwell.Common.Configuration.EntityFramework;
 using Voidwell.Deadlock.Data.Repositories;
 using Voidwell.Deadlock.Data.Repositories.Abstractions;
 
@@ -33,6 +35,19 @@ public static class DatabaseExtensions
         return services;
     }
 
+    /// <summary>
+    /// Serves the application_configuration table as the lowest priority configuration source and registers the
+    /// store that writes to it. Settings in appsettings or environment variables override and lock stored values.
+    /// </summary>
+    public static IHostApplicationBuilder AddApplicationConfigurationStore(this IHostApplicationBuilder builder)
+    {
+        var options = builder.Configuration.Get<DatabaseOptions>() ?? new DatabaseOptions();
+
+        builder.AddApplicationConfiguration<DeadlockDbContext>(dbContextBuilder => DeadlockDbContext.Configure(dbContextBuilder, options));
+
+        return builder;
+    }
+
     public static IApplicationBuilder InitializeDatabases(this IApplicationBuilder app)
     {
         using var serviceScope = app.ApplicationServices.CreateScope();
@@ -40,6 +55,9 @@ public static class DatabaseExtensions
         var dbContextFactory = serviceScope.ServiceProvider.GetRequiredService<IDbContextFactory<DeadlockDbContext>>();
         using var dbContext = dbContextFactory.CreateDbContext();
         dbContext.Database.Migrate();
+
+        // The configuration table is first read before migrations run, so read it again now it exists
+        app.ApplicationServices.ReloadApplicationConfiguration();
 
         return app;
     }
