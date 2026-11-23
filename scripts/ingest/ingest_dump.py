@@ -161,7 +161,7 @@ def extract(parquet_path, out_dir, threads, memory_limit):
     con.execute(f"SET threads = {int(threads)}")
     con.execute(f"SET memory_limit = '{memory_limit}'")
 
-    # Row order does not matter here, and not preserving it lets DuckDB stream large files instead of holding them in memory.
+    # Rows are sorted explicitly below, so the order DuckDB would otherwise keep is irrelevant and not keeping it saves memory.
     con.execute("SET preserve_insertion_order = false")
     con.execute(f"SET temp_directory = '{out_dir.replace(chr(92), '/')}'")
 
@@ -171,8 +171,11 @@ def extract(parquet_path, out_dir, threads, memory_limit):
     counts = {}
     for table, (columns, select) in TABLES.items():
         csv_path = os.path.join(out_dir, f"{table}.csv").replace("\\", "/")
-        con.execute(f"COPY ({select}) TO '{csv_path}' (FORMAT csv, HEADER false)")
-        counts[table] = con.execute(f"SELECT count(*) FROM read_csv('{csv_path}', header=false, all_varchar=true)").fetchone()[0]
+        # Sorted by match id (the first column), which follows time. Loading then walks the file in slices that each touch a
+        # narrow range of time, so the indexes and chunks being written stay hot. Rows of one match stay together.
+        # COPY reports how many rows it wrote. Don't re-read the file to count them: DuckDB's CSV sniffer can decide there is
+        # no quote character and then split quoted values such as "{13,18}" into extra columns.
+        counts[table] = con.execute(f"COPY (SELECT * FROM ({select}) ORDER BY 1) TO '{csv_path}' (FORMAT csv, HEADER false)").fetchone()[0]
 
     min_start = con.execute("SELECT min(start_time) FROM src").fetchone()[0]
 
@@ -183,54 +186,75 @@ def extract(parquet_path, out_dir, threads, memory_limit):
 def load(dsn, key, out_dir, counts, slice_rows):
     """Loads a file's CSVs into the tables in small committed slices.
 
-    Timescale locks the hypertable while an insert creates a chunk, and holds the lock until the transaction commits. One
-    transaction per file lasts hours, so parallel workers would wait for each other's chunk creation. Committing a slice at
-    a time keeps the lock to seconds. This is safe to repeat: rows that exist are skipped, and the file is only recorded as
-    loaded after everything else, so a crash just means the file is read again.
+    Each CSV is sorted by match id. It is read in slices of slice_rows lines; every slice is copied into a small temp table
+    and inserted with ON CONFLICT DO NOTHING in its own transaction. Timescale locks the hypertable while an insert creates
+    a chunk and holds the lock until commit, so committing a slice at a time keeps that lock to seconds and lets parallel
+    workers coexist. Loading is safe to repeat: rows that exist are skipped, and the file is only recorded as loaded after
+    everything else, so a crash just means the file is read again.
+
+    The slices are cut from the file, not from a table inside the database. An earlier version copied a whole file into one
+    temp table and cut it with WHERE match_id BETWEEN ..., which scans the entire temp table for every slice. The temp
+    tables read 10x as many blocks as they wrote, and the copy itself slowed to about 1 MB/s once the table outgrew the
+    server's cache.
     """
+    import itertools
+
     import psycopg  # imported late so --extract-only works without it
 
-    with psycopg.connect(dsn, autocommit=True) as conn:
-        # Durability on commit is not needed (a file can be loaded again), and it makes the load noticeably faster.
-        conn.execute("SET synchronous_commit = off")
+    for table, (columns, _) in TABLES.items():
+        if counts[table] == 0:
+            continue
 
-        for table, (columns, _) in TABLES.items():
-            if counts[table] == 0:
-                continue
+        column_list = ", ".join(columns)
+        staging = f"stg_{table}"
+        csv_path = os.path.join(out_dir, f"{table}.csv")
+        added = 0
+        slices = 0
+        started = time.time()
 
-            column_list = ", ".join(columns)
-            staging = f"stg_{table}"
-            conn.execute(f"DROP TABLE IF EXISTS {staging}")
+        with psycopg.connect(dsn, autocommit=True) as conn, open(csv_path, "rb") as csv_file:
+            # Durability on commit is not needed (a file can be loaded again), and it makes the load noticeably faster.
+            conn.execute("SET synchronous_commit = off")
             conn.execute(f"CREATE TEMP TABLE {staging} (LIKE {table} INCLUDING DEFAULTS)")
 
-            with conn.cursor() as cur:
-                with open(os.path.join(out_dir, f"{table}.csv"), "rb") as csv_file:
+            while True:
+                lines = list(itertools.islice(csv_file, slice_rows))
+                if not lines:
+                    break
+
+                with conn.cursor() as cur:
                     with cur.copy(f"COPY {staging} ({column_list}) FROM STDIN WITH (FORMAT csv)") as copy:
-                        while chunk := csv_file.read(1024 * 1024):
-                            copy.write(chunk)
+                        copy.write(b"".join(lines))
 
-            # Slice by match id, which follows time, so each slice touches only a few chunks. The slices are sized by rows.
-            low, high = conn.execute(f"SELECT min(match_id), max(match_id) FROM {staging}").fetchone()
-            slices = max(1, -(-counts[table] // slice_rows))
-            step = max(1, -(-(high - low + 1) // slices))
-
-            added = 0
-            for start in range(low, high + 1, step):
-                cur = conn.execute(
-                    f"INSERT INTO {table} ({column_list}) SELECT {column_list} FROM {staging} "
-                    f"WHERE match_id >= %s AND match_id < %s ON CONFLICT DO NOTHING",
-                    (start, start + step),
-                )
+                cur = conn.execute(f"INSERT INTO {table} ({column_list}) SELECT {column_list} FROM {staging} ON CONFLICT DO NOTHING")
                 added += cur.rowcount
+                conn.execute(f"TRUNCATE {staging}")
+                slices += 1
 
-            conn.execute(f"DROP TABLE {staging}")
-            log(f"  {table}: {counts[table]:,} rows read, {added:,} new ({slices} slices)")
+        seconds = max(time.time() - started, 0.001)
+        log(f"  {table}: {counts[table]:,} rows read, {added:,} new ({slices} slices, {counts[table] / seconds:,.0f} rows/s)")
 
+    with psycopg.connect(dsn, autocommit=True) as conn:
         conn.execute(
             "INSERT INTO ingest_file (key, rows, ingested_at) VALUES (%s, %s, now()) "
             "ON CONFLICT (key) DO UPDATE SET rows = EXCLUDED.rows, ingested_at = EXCLUDED.ingested_at",
             (key, counts["match_player"]),
         )
+
+
+def claim_file(dsn, key):
+    """Takes a session lock for the file so two workers never load the same one; returns the connection holding it, or None.
+
+    Pending files are picked when a worker starts and the manifest changes between runs, so workers can disagree about who
+    owns what. Closing the connection releases the lock.
+    """
+    import psycopg  # imported late so --extract-only works without it
+
+    conn = psycopg.connect(dsn, autocommit=True)
+    if conn.execute("SELECT pg_try_advisory_lock(hashtext(%s))", (key,)).fetchone()[0]:
+        return conn
+    conn.close()
+    return None
 
 
 def already_loaded(dsn):
@@ -291,6 +315,11 @@ def main():
                         help="Stop before loading another file once the database is this large (0 turns this off)")
     parser.add_argument("--shard", metavar="I/N",
                         help="Load only every Nth pending file, starting at the Ith (for example 0/2 and 1/2 in two processes)")
+    parser.add_argument("--skip", action="append", default=[], metavar="TEXT",
+                        help="Skip pending files whose key contains TEXT (repeatable), for example one that an older "
+                             "worker without file claims is still loading")
+    parser.add_argument("--only", metavar="TEXT",
+                        help="Load only pending files whose key contains TEXT (for example part-133)")
     parser.add_argument("--finalize", action="store_true",
                         help="Compress all chunks older than 7 days, print statistics and exit. Run once after all workers finish.")
     parser.add_argument("--slice-rows", type=int, default=400_000,
@@ -341,6 +370,12 @@ def main():
         todo = [f for position, f in enumerate(todo) if position % shard_count == shard_index]
         log(f"Shard {args.shard}: {len(todo)} files")
 
+    if args.only:
+        todo = [f for f in todo if args.only in f["key"]]
+
+    if args.skip:
+        todo = [f for f in todo if not any(text in f["key"] for text in args.skip)]
+
     if args.max_files:
         todo = todo[: args.max_files]
 
@@ -354,17 +389,29 @@ def main():
                 print_stats(args.dsn)
                 return 2
 
-        log(f"[{index}/{len(todo)}] {key} ({file['rows']:,} rows, {file['bytes'] / 1e6:,.0f} MB)")
+        claim = claim_file(args.dsn, key)
+        if claim is None:
+            log(f"[{index}/{len(todo)}] {key} is being loaded by another worker, skipping")
+            continue
 
-        out_dir = tempfile.mkdtemp(prefix="deadlock-ingest-", dir=work_root)
         try:
-            parquet_path = os.path.join(out_dir, "source.parquet")
-            download(f"{base_url}/{key}", parquet_path)
-            counts, min_start = extract(parquet_path, out_dir, args.threads, args.memory_limit)
-            os.remove(parquet_path)
-            load(args.dsn, key, out_dir, counts, args.slice_rows)
+            if key in already_loaded(args.dsn):
+                log(f"[{index}/{len(todo)}] {key} was loaded by another worker, skipping")
+                continue
+
+            log(f"[{index}/{len(todo)}] {key} ({file['rows']:,} rows, {file['bytes'] / 1e6:,.0f} MB)")
+
+            out_dir = tempfile.mkdtemp(prefix="deadlock-ingest-", dir=work_root)
+            try:
+                parquet_path = os.path.join(out_dir, "source.parquet")
+                download(f"{base_url}/{key}", parquet_path)
+                counts, min_start = extract(parquet_path, out_dir, args.threads, args.memory_limit)
+                os.remove(parquet_path)
+                load(args.dsn, key, out_dir, counts, args.slice_rows)
+            finally:
+                shutil.rmtree(out_dir, ignore_errors=True)
         finally:
-            shutil.rmtree(out_dir, ignore_errors=True)
+            claim.close()
 
         # Base files arrive in match id order, which is close to time order, so chunks well behind the file being loaded
         # are finished. Residual and delta files hold rows from all periods and are not used to move the cutoff.
