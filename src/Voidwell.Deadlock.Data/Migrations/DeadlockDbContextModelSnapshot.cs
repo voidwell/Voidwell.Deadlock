@@ -481,6 +481,56 @@ namespace Voidwell.Deadlock.Data.Migrations
                     b.ToTable("hero_day", (string)null);
                 });
 
+            modelBuilder.Entity("Voidwell.Deadlock.Data.Models.HeroItemBuild", b =>
+                {
+                    b.Property<int>("HeroId")
+                        .HasColumnType("integer")
+                        .HasColumnName("hero_id");
+
+                    b.Property<DateOnly>("Day")
+                        .HasColumnType("date")
+                        .HasColumnName("day");
+
+                    b.Property<long>("MatchId")
+                        .HasColumnType("bigint")
+                        .HasColumnName("match_id");
+
+                    b.Property<int>("PlayerSlot")
+                        .HasColumnType("integer")
+                        .HasColumnName("player_slot");
+
+                    b.PrimitiveCollection<int[]>("BuyTimesS")
+                        .IsRequired()
+                        .HasColumnType("integer[]")
+                        .HasColumnName("buy_times_s");
+
+                    b.Property<int>("DurationS")
+                        .HasColumnType("integer")
+                        .HasColumnName("duration_s");
+
+                    b.PrimitiveCollection<long[]>("ItemIds")
+                        .IsRequired()
+                        .HasColumnType("bigint[]")
+                        .HasColumnName("item_ids");
+
+                    b.Property<short>("Mode")
+                        .HasColumnType("smallint")
+                        .HasColumnName("mode");
+
+                    b.Property<short>("Tier")
+                        .HasColumnType("smallint")
+                        .HasColumnName("tier");
+
+                    b.Property<bool>("Won")
+                        .HasColumnType("boolean")
+                        .HasColumnName("won");
+
+                    b.HasKey("HeroId", "Day", "MatchId", "PlayerSlot")
+                        .HasName("pk_hero_item_build");
+
+                    b.ToTable("hero_item_build", (string)null);
+                });
+
             modelBuilder.Entity("Voidwell.Deadlock.Data.Models.HeroItemDay", b =>
                 {
                     b.Property<int>("HeroId")

@@ -13,6 +13,7 @@ public static class AnalyticsServiceExtensions
         services.AddSingleton<IAnalyticsQueryResolver, AnalyticsQueryResolver>();
         services.AddSingleton<IHeroAnalyticsService, HeroAnalyticsService>();
         services.AddSingleton<IItemAnalyticsService, ItemAnalyticsService>();
+        services.AddSingleton<IItemBuildService, ItemBuildService>();
         services.AddSingleton<IMatchupAnalyticsService, MatchupAnalyticsService>();
         services.AddSingleton<ICurveAnalyticsService, CurveAnalyticsService>();
         services.AddSingleton<IMatchAnalyticsService, MatchAnalyticsService>();

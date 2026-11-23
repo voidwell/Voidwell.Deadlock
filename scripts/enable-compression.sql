@@ -4,3 +4,6 @@ SELECT add_compression_policy('match', INTERVAL '7 days', if_not_exists => true)
 SELECT add_compression_policy('match_player', INTERVAL '7 days', if_not_exists => true);
 SELECT add_compression_policy('match_player_item', INTERVAL '7 days', if_not_exists => true);
 SELECT add_compression_policy('match_player_stat', INTERVAL '7 days', if_not_exists => true);
+
+-- Item builds are rebuilt from the match tables, so add this once the rollup history has been rebuilt.
+SELECT add_compression_policy('hero_item_build', INTERVAL '14 days', if_not_exists => true);

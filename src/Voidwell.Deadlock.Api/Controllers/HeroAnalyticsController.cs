@@ -15,14 +15,16 @@ public class HeroAnalyticsController : Controller
     private readonly IAnalyticsQueryResolver _resolver;
     private readonly IHeroAnalyticsService _service;
     private readonly IItemAnalyticsService _itemService;
+    private readonly IItemBuildService _itemBuildService;
     private readonly IMatchupAnalyticsService _matchupService;
 
     public HeroAnalyticsController(IAnalyticsQueryResolver resolver, IHeroAnalyticsService service, IItemAnalyticsService itemService,
-        IMatchupAnalyticsService matchupService)
+        IItemBuildService itemBuildService, IMatchupAnalyticsService matchupService)
     {
         _resolver = resolver;
         _service = service;
         _itemService = itemService;
+        _itemBuildService = itemBuildService;
         _matchupService = matchupService;
     }
 
@@ -107,6 +109,26 @@ public class HeroAnalyticsController : Controller
 
         var shapes = await _itemService.GetHeroBuildShapesAsync(heroId, query, minGames);
         return shapes == null ? NotFound() : Ok(shapes);
+    }
+
+    /// <summary>
+    /// The shop items that gave the hero's players the best odds of winning together, in the order to buy them. Each item
+    /// is chosen by how much it raised the win rate in the games that already had the items chosen before it, so items
+    /// that work well together rank higher. Covers at most 60 days; a month takes a few seconds.
+    /// </summary>
+    /// <param name="heroId">The hero.</param>
+    /// <param name="request">The period, mode and rank filters.</param>
+    /// <param name="minGames">The fewest games an item must be bought in, and not bought in, alongside the items chosen
+    /// before it, to be compared. Lower values give longer builds from less evidence.</param>
+    /// <param name="maxItems">The most items in the build (1 to 16).</param>
+    [HttpGet("{heroId:int}/item-build")]
+    public async Task<ActionResult> GetHeroItemBuildAsync(int heroId, [FromQuery] AnalyticsRequest request, [FromQuery] int minGames = 100,
+        [FromQuery] int maxItems = 12)
+    {
+        var query = await _resolver.ResolveAsync(request);
+
+        var build = await _itemBuildService.GetHeroItemBuildAsync(heroId, query, minGames, maxItems, HttpContext.RequestAborted);
+        return build == null ? NotFound() : Ok(build);
     }
 
     /// <summary>

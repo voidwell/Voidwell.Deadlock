@@ -1,3 +1,4 @@
+using System.Runtime.CompilerServices;
 using Microsoft.EntityFrameworkCore;
 using Voidwell.Deadlock.Data.Models;
 using Voidwell.Deadlock.Data.Repositories.Abstractions;
@@ -42,6 +43,28 @@ public class ItemAnalyticsRepository : IItemAnalyticsRepository
             })
             .OrderByDescending(a => a.Games)
             .ToListAsync();
+    }
+
+    public async IAsyncEnumerable<HeroItemBuildRecord> GetHeroItemBuildsAsync(int heroId, AnalyticsFilter filter,
+        [EnumeratorCancellation] CancellationToken cancellationToken = default)
+    {
+        using var dbContext = _dbContextFactory.CreateDbContext();
+
+        var records = dbContext.HeroItemBuilds.Where(a => a.HeroId == heroId).InFilter(filter)
+            .Select(a => new HeroItemBuildRecord
+            {
+                Won = a.Won,
+                DurationS = a.DurationS,
+                ItemIds = a.ItemIds,
+                BuyTimesS = a.BuyTimesS
+            })
+            .AsAsyncEnumerable()
+            .WithCancellation(cancellationToken);
+
+        await foreach (var record in records)
+        {
+            yield return record;
+        }
     }
 
     public async Task<List<CommunityBuildTotals>> GetCommunityBuildTotalsAsync(int heroId, AnalyticsFilter filter, long minGames, int limit)

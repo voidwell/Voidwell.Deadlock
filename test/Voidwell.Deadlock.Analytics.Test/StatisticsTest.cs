@@ -77,4 +77,15 @@ public class StatisticsTest
     {
         Assert.Equal(expected, TierRating.FromWinRate(winRate));
     }
+
+    [Theory]
+    [InlineData(0.5, 0)]
+    [InlineData(0.975, 1.959964)]
+    [InlineData(0.025, -1.959964)]
+    [InlineData(0.9999, 3.719016)]
+    [InlineData(0.001, -3.090232)]
+    public void NormalQuantile_MatchesTheStandardNormal(double p, double expected)
+    {
+        Assert.Equal(expected, Statistics.NormalQuantile(p), 4);
+    }
 }

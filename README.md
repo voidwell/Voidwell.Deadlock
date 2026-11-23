@@ -60,7 +60,7 @@ The `MatchUpdater` hosted service runs every few minutes. It lists the matches t
 
 ## Analytics
 
-The raw match tables are far too large to query directly, so the analytics endpoints read **daily rollup tables**: `match_day`, `hero_day` and `hero_ban_day` for heroes, and `hero_item_day`, `item_day`, `hero_build_shape_day`, `hero_build_day`, `hero_ability_day` and `hero_ability_pick_day` for items, builds and abilities, `hero_matchup_day`, `hero_synergy_day`, `hero_lane_day` and `team_composition_day` for matchups and compositions, and `hero_curve_day` and `team_lead_day` for how matches develop, and `match_hour_day`, `match_duration_day`, `match_objective_day` and `match_leaver_day` for matches as a whole. Each row is one UTC day, match mode and rank tier, so any date range, patch or rank bracket is built by summing rows. `RollupUpdater` recomputes the newest days every hour. Older history is built on request, once the import has finished:
+The raw match tables are far too large to query directly, so the analytics endpoints read **daily rollup tables**: `match_day`, `hero_day` and `hero_ban_day` for heroes, and `hero_item_day`, `item_day`, `hero_build_shape_day`, `hero_build_day`, `hero_ability_day` and `hero_ability_pick_day` for items, builds and abilities, `hero_matchup_day`, `hero_synergy_day`, `hero_lane_day` and `team_composition_day` for matchups and compositions, and `hero_curve_day` and `team_lead_day` for how matches develop, and `match_hour_day`, `match_duration_day`, `match_objective_day` and `match_leaver_day` for matches as a whole. Each row is one UTC day, match mode and rank tier, so any date range, patch or rank bracket is built by summing rows. The exception is `hero_item_build`, which keeps one row per player with the shop items they bought, because item combinations are far too many to count in advance; it is a hypertable compressed by hero. `RollupUpdater` recomputes the newest days every hour. Older history is built on request, once the import has finished:
 
 ```
 POST /deadlock/rollups/rebuild            (administrators; defaults to every day with matches; runs in the background)
@@ -78,6 +78,7 @@ Public endpoints (cached for 10 minutes per query), all under `/deadlock`:
 | `GET /analytics/items` | Every shop item: buy rate, win rate, how often buyers keep it, and win rate by when it was first bought |
 | `GET /analytics/heroes/{id}/items` | The same for one hero's players, with each item's win rate against the hero's average |
 | `GET /analytics/heroes/{id}/builds` | Win rate by how a hero's tier 3+ items split across weapon, spirit and vitality (for example `4W/2S/1V`) |
+| `GET /analytics/heroes/{id}/item-build` | The shop items that gave a hero the best odds of winning together, in the order to buy them; see [Item builds](#item-builds) |
 | `GET /analytics/heroes/{id}/community-builds` | Usage and win rate of the community builds players run |
 | `GET /analytics/heroes/{id}/ability-order` | Which ability is maxed first, when each is unlocked, and the choice at each of the 16 ability points |
 | `GET /analytics/heroes/{id}/counters` | Win rate against each enemy hero, best matchups first |
@@ -104,6 +105,7 @@ Query parameters, shared by the analytics endpoints:
 | `minGames` | Leave out heroes, items or builds with fewer games |
 | `slot`, `itemTier` | Item endpoints only: weapon, spirit or vitality; shop tier 1 to 5 (not the rank tiers) |
 | `limit` | Community builds only: how many to return, most played first |
+| `maxItems` | Item build only: the most items in the build, 1 to 16 (default 12) |
 | `compareFrom`, `compareTo`, `comparePatch` | Baseline for `trends`; defaults to the period just before |
 
 Rates are fractions from 0 to 1. Invalid queries return 400 with the reason.
@@ -115,6 +117,17 @@ Reading the objective numbers: the game records which objectives are still stand
 Reading the matchup numbers: each pair result comes with `expectedWinRate`, what the two heroes' overall win rates alone would predict, and `advantage`, the difference. A hero that wins a lot will beat most heroes, so `advantage` is the figure that shows the pairing itself. Lane results use the souls lead at nine minutes, near the end of the laning phase; each lane has two players per team, so a player has two lane opponents. Heroes with no archetype in the game data (today Dynamo, Ivy, Kelvin, Paige and Rem) count as supports in compositions.
 
 Reading the item numbers: an item is only bought late in matches that last long enough, so late items tend to show higher win rates than they earn. Use `winRateLift` together with the `timing` buckets (early under 10 minutes, mid 10 to 20, late 20 to 30, endgame 30 and over) rather than comparing items bought at different times. Players' exact final item sets are far too varied to rank (the most common set of one popular hero was under 1% of players), which is why builds are shown as slot splits and community builds.
+
+### Item builds
+
+`GET /analytics/heroes/{id}/item-build` works out a build from every game in the period (at most 60 days; a month takes a few seconds). It reads `hero_item_build`, so days before the table existed need a rollup rebuild first.
+
+- **One item at a time, alongside the earlier ones.** Each step looks only at the games that already had every item chosen so far, and picks the item that raised the win rate most in them. An item that works well with the earlier picks ranks higher than one that only does well on its own; each item's `synergy` is how much better it did alongside them than across all games.
+- **Against games that could have bought it.** An item's buyers are compared with the games where it was not bought but which lasted until the time it is usually bought, so late items are not credited for long games. Players who are ahead still buy more, so some of the gold bias remains.
+- **Only clear improvements.** Items are ranked by the lower end of the interval of their lift, widened for the number of items compared at once (a Bonferroni correction, so chance does not pick the luckiest of a hundred items). The build ends when no item is clearly better (`noBetterItem`), when too few games remain to compare (`notEnoughGames`, lower `minGames` for longer builds from less evidence) or at `maxItems`.
+- **Core items.** Items bought in at least 70% of games have too few games without them to measure, so they are included as `core` without narrowing the games.
+- **Buying order.** The build is listed by when players usually first buy each item (the median), not by the order the items were chosen.
+- Players who left the match are left out, since their purchases stop early. `fullBuildGames` is how many games had every non-core item of the build.
 
 The rollups hold about 180,000 rows for every 220,000 players a day, so rebuilding all history takes a while and adds some GB. A rebuilt day takes under a minute per 200,000 players.
 
