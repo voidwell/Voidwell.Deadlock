@@ -20,6 +20,12 @@ public interface IItemAnalyticsRepository
     Task<List<BuildShapeTotals>> GetBuildShapeTotalsAsync(int heroId, AnalyticsFilter filter);
 
     /// <summary>
+    /// The shop items each of one hero's players bought, one record per player per match. Streamed, because a month of
+    /// a popular hero is around 200,000 records.
+    /// </summary>
+    IAsyncEnumerable<HeroItemBuildRecord> GetHeroItemBuildsAsync(int heroId, AnalyticsFilter filter, CancellationToken cancellationToken = default);
+
+    /// <summary>
     /// The hero's most played community builds with at least <paramref name="minGames"/> games, most played first.
     /// </summary>
     Task<List<CommunityBuildTotals>> GetCommunityBuildTotalsAsync(int heroId, AnalyticsFilter filter, long minGames, int limit);

@@ -35,6 +35,7 @@ public class DeadlockDbContext : DbContext, IApplicationConfigurationDbContext
     public DbSet<ItemDay> ItemDays => Set<ItemDay>();
     public DbSet<HeroBuildShapeDay> HeroBuildShapeDays => Set<HeroBuildShapeDay>();
     public DbSet<HeroBuildDay> HeroBuildDays => Set<HeroBuildDay>();
+    public DbSet<HeroItemBuild> HeroItemBuilds => Set<HeroItemBuild>();
     public DbSet<HeroAbilityDay> HeroAbilityDays => Set<HeroAbilityDay>();
     public DbSet<HeroAbilityPickDay> HeroAbilityPickDays => Set<HeroAbilityPickDay>();
     public DbSet<HeroMatchupDay> HeroMatchupDays => Set<HeroMatchupDay>();

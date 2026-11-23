@@ -20,6 +20,7 @@ public class RollupRepository : IRollupRepository
         DELETE FROM item_day WHERE day = @day;
         DELETE FROM hero_build_shape_day WHERE day = @day;
         DELETE FROM hero_build_day WHERE day = @day;
+        DELETE FROM hero_item_build WHERE day = @day;
         DELETE FROM hero_ability_day WHERE day = @day;
         DELETE FROM hero_ability_pick_day WHERE day = @day;
         DELETE FROM hero_matchup_day WHERE day = @day;
@@ -159,6 +160,27 @@ public class RollupRepository : IRollupRepository
         FROM match_player
         WHERE start_time >= {_dayStart} AND start_time < {_dayEnd} AND hero_build_id IS NOT NULL
         GROUP BY hero_id, match_mode, COALESCE(average_badge / 10, -1), hero_build_id
+        """;
+
+    // One row per player with the shop items they bought, in the order of their first purchase of each. Players who left
+    // the match are left out, because their purchases stop early and would make the items they never reached look like
+    // they win. Players who bought no shop item are kept, with empty lists.
+    private const string _heroItemBuildSql = $"""
+        INSERT INTO hero_item_build (hero_id, day, mode, tier, match_id, player_slot, won, duration_s, item_ids, buy_times_s)
+        WITH purchases AS (
+            SELECT i.match_id, i.player_slot, i.item_id, min(i.game_time_s) AS first_buy_s
+            FROM match_player_item i
+            JOIN item r ON r.id = i.item_id AND r.type = 'upgrade'
+            WHERE i.start_time >= {_dayStart} AND i.start_time < {_dayEnd}
+            GROUP BY i.match_id, i.player_slot, i.item_id
+        )
+        SELECT p.hero_id, @day, p.match_mode, COALESCE(p.average_badge / 10, -1), p.match_id, p.player_slot, p.won, p.duration_s,
+               COALESCE(array_agg(u.item_id ORDER BY u.first_buy_s, u.item_id) FILTER (WHERE u.item_id IS NOT NULL), ARRAY[]::bigint[]),
+               COALESCE(array_agg(u.first_buy_s ORDER BY u.first_buy_s, u.item_id) FILTER (WHERE u.item_id IS NOT NULL), ARRAY[]::integer[])
+        FROM match_player p
+        LEFT JOIN purchases u ON u.match_id = p.match_id AND u.player_slot = p.player_slot
+        WHERE p.start_time >= {_dayStart} AND p.start_time < {_dayEnd} AND p.abandon_match_time_s = 0
+        GROUP BY p.hero_id, p.match_mode, COALESCE(p.average_badge / 10, -1), p.match_id, p.player_slot, p.won, p.duration_s
         """;
 
     // An ability takes four points, so its fourth point is the earliest it can be maxed.
@@ -429,7 +451,7 @@ public class RollupRepository : IRollupRepository
         foreach (var sql in new[]
         {
             _deleteSql, _matchDaySql, _heroDaySql, _heroBanDaySql,
-            _heroItemDaySql, _itemDaySql, _heroBuildShapeDaySql, _heroBuildDaySql, _heroAbilityDaySql, _heroAbilityPickDaySql,
+            _heroItemDaySql, _itemDaySql, _heroBuildShapeDaySql, _heroBuildDaySql, _heroItemBuildSql, _heroAbilityDaySql, _heroAbilityPickDaySql,
             _heroMatchupDaySql, _heroSynergyDaySql, _heroLaneDaySql, _teamCompositionDaySql,
             _heroCurveDaySql, _teamLeadDaySql,
             _matchHourDaySql, _matchDurationDaySql, _matchObjectiveDaySql, _matchLeaverDaySql
