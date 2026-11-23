@@ -15,7 +15,7 @@ Backend API for Voidwell's Deadlock analytics. Match data lives in PostgreSQL wi
 | `Voidwell.Deadlock.Analytics` | Rollup jobs that summarize the match tables by day, and the services behind the analytics endpoints |
 | `Voidwell.Deadlock.Collections` | Collection layer: typed HTTP client for the API, reference-data collections and the match collection |
 | `Voidwell.Deadlock.CollectionStore` | Maps API models to entities, syncs reference data weekly, and runs the `MatchUpdater` |
-| `Voidwell.Deadlock.Utils` | Stateful hosted services, JSON converters |
+| `Voidwell.Deadlock.Utils` | JSON converters |
 
 ## Match data
 
@@ -56,7 +56,7 @@ Also keep the write-ahead log from filling the disk during the load: do not arch
 
 ### Keeping it current
 
-The `MatchUpdater` hosted service runs every few minutes. It lists the matches that started in a trailing window (a match only appears once it has ended, so the window looks back past the last run), skips those already stored, and fetches and writes the rest. A run that fails is retried over the same window. It starts with the app unless `DisableMatchUpdater` is `true`, and can be controlled at runtime through `/deadlock/services`.
+The `MatchUpdater` hosted service runs every few minutes. It lists the matches that started in a trailing window (a match only appears once it has ended, so the window looks back past the last run), skips those already stored, and fetches and writes the rest. A run that fails is retried over the same window. It is off until enabled; see [Background services](#background-services).
 
 ## Analytics
 
@@ -130,15 +130,39 @@ Read from `appsettings.json`, `appsettings.{Environment}.json`, then environment
 | `Auth:Authority` / `Auth:ClientId` / `Auth:ClientSecret` | Yes | Token authority used to validate JWTs |
 | `AssetsBaseUrl` | No | Defaults to `https://api.deadlock-api.com` |
 | `RedisConfiguration` | No | Empty keeps the cache in memory |
-| `DisableUpdater` | No | `true` disables the weekly reference-data sync |
-| `DisableMatchUpdater` | No | `true` stops the match updater starting with the app |
+| `HostedServices:{Name}:Enabled` | No | Turns a background service on or off and locks it; see [Background services](#background-services) |
 | `MatchUpdateIntervalMinutes` | No | Minutes between match update runs (default 5) |
 | `MatchUpdateOverlapMinutes` | No | How far before the last run each run looks (default 120) |
 | `MatchUpdateInitialLookbackHours` | No | First run on an empty database looks this far back (default 24) |
 | `MatchUpdateBatchSize` | No | Matches per API request (default 100) |
-| `DisableRollupUpdater` | No | `true` stops the rollup updater starting with the app |
 | `RollupIntervalMinutes` | No | Minutes between rollup runs (default 60) |
 | `RollupRecomputeDays` | No | Newest days recomputed on each run (default 3) |
+
+## Background services
+
+`StoreUpdaterScheduler` (the weekly reference-data sync), `MatchUpdater` and `RollupUpdater` are stateful hosted
+services from [Voidwell.Common.State](https://github.com/voidwell/voidwell.common/tree/main/src/State). Each one is
+**off** until it is enabled.
+
+Administrators enable and disable them through the API, and the choice is saved in the `application_configuration`
+table, so it survives restarts and applies to every instance:
+
+```
+GET  /deadlock/services/status
+POST /deadlock/services/{name}/enable
+POST /deadlock/services/{name}/disable
+```
+
+A service's state is the configuration key `HostedServices:{Name}:Enabled`. The table is the lowest priority source,
+so setting the key in appsettings or an environment variable overrides it and **locks** the service: its status
+reports `isLocked` and `lockedBy`, and enable or disable requests return `409 Conflict`. For example, to keep the
+match updater off in one deployment:
+
+```
+HostedServices__MatchUpdater__Enabled=false
+```
+
+Rollup rebuilds and `POST /deadlock/store/update/{storeName}` work whether or not the services are enabled.
 
 ## Adding reference data
 

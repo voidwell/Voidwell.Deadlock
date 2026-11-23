@@ -3,11 +3,6 @@ namespace Voidwell.Deadlock.Analytics;
 public class RollupOptions
 {
     /// <summary>
-    /// When true the rollup updater does not start with the application. It can still be started through the services API.
-    /// </summary>
-    public bool DisableRollupUpdater { get; set; }
-
-    /// <summary>
     /// Minutes between rollup runs.
     /// </summary>
     public int RollupIntervalMinutes { get; set; } = 60;

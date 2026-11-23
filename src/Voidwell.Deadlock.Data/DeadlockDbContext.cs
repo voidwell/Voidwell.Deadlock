@@ -1,10 +1,11 @@
 using System.Reflection;
 using Microsoft.EntityFrameworkCore;
+using Voidwell.Common.Configuration.EntityFramework;
 using Voidwell.Deadlock.Data.Models;
 
 namespace Voidwell.Deadlock.Data;
 
-public class DeadlockDbContext : DbContext
+public class DeadlockDbContext : DbContext, IApplicationConfigurationDbContext
 {
     static DeadlockDbContext()
     {
@@ -49,6 +50,8 @@ public class DeadlockDbContext : DbContext
 
     public DbSet<UpdaterScheduler> UpdaterScheduler => Set<UpdaterScheduler>();
 
+    public DbSet<ApplicationConfigurationEntity> ApplicationConfiguration => Set<ApplicationConfigurationEntity>();
+
     internal static DbContextOptions<DeadlockDbContext> CreateDefaultDbContextOptions(DatabaseOptions options)
     {
         var builder = new DbContextOptionsBuilder<DeadlockDbContext>();
@@ -78,5 +81,7 @@ public class DeadlockDbContext : DbContext
         base.OnModelCreating(builder);
 
         builder.ApplyConfigurationsFromAssembly(typeof(DeadlockDbContext).Assembly);
+
+        builder.ApplyApplicationConfiguration();
     }
 }
